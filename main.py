@@ -2,8 +2,10 @@ import socket
 import json   
 from classes.TrafficLight import TrafficStuff
 from classes.TrafficLight import trafficLight
+from classes.Bridge import Bridge
 import threading
-from time import sleep    
+from time import sleep   
+import time 
 from collections import namedtuple
 from classes.Lane import Lane
 
@@ -23,9 +25,32 @@ class MThread(threading.Thread):
 	def listening(self):
 		received = self.c.recv(1024)
 		if (len(received) > 0):
+			received = received[:-1]
 			#In python3 .decode('utf-8') / .encode('utf-8') nodig bij received
-			newinfo = json.loads(received, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
-			UpdateTriggers(c,newinfo)
+			splittedmessage = received.split('\n')
+			for message in splittedmessage:
+				print "this is message: " + str(message)
+				newinfo = json.loads(message, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
+				UpdateTriggers(self.c,newinfo)
+
+def ManageBridge(c):
+	if (bridgestatus.bridgeopen == bridgestatus.bridgeopened):
+		if bridgestatus.timer > 0 or bridgestatus.allboatspassed:
+			if (time.time() - bridgestatus.timer) > 25 or bridgestatus.allboatspassed:
+				bridgestatus.bridgeopen = not bridgestatus.bridgeopen
+				SendBridgeData(c)
+				bridgestatus.timer = 0
+				bridgestatus.allboatspassed = False
+		elif (not bridgestatus.bridgeopened):
+			for lane in bridgelanes:
+				if lane.id.find("4.") == 0 and lane.triggered:
+					bridgestatus.timer = time.time()
+		elif (bridgestatus.bridgeopened):
+			bridgestatus.allboatspassed = True
+			for lane in bridgelanes:
+				if lane.id.find("4.") == 0 and lane.triggered:
+					bridgestatus.allboatspassed = False
+					break
 
 def jdefault(o):
     if isinstance(o, set):
@@ -52,20 +77,23 @@ def WaitForClient(socket):
    	return c
 
 def UpdateTriggers(c,updatedtriggers):
+	print updatedtriggers
 	if (updatedtriggers.type == "PrimaryTrigger"):
 		UpdateTriggerLanes(updatedtriggers)
 	elif (updatedtriggers.type == "SecondaryTrigger"):
 		UpdateTriggerLanes(updatedtriggers)
 	elif (updatedtriggers.type == "BridgeStatusData"):
-		global bridgeopened
-		bridgeopened = updatedtriggers.opened
+		bridgestatus.bridgeopened = updatedtriggers.opened
+		# print bridgestatus.bridgeopened
+		# print bridgestatus.bridgeopen
 	elif (updatedtriggers.type == "TimeScaleData"):
-		ConfirmTimescale(c)
+		print "ok"
+		# ConfirmTimescale(c, updatedtriggers)
 
 def SendBridgeData(c):
-	c.send(json.dumps({'type':'BridgeData','bridgeOpen':bridgeopened}))
+	c.send(json.dumps({'type':'BridgeData','bridgeOpen':bridgestatus.bridgeopen})+'\n')
 
-def ConfirmTimescale(c):
+def ConfirmTimescale(c, updatedtriggers):
 	global timescale 
 	timescale = updatedtriggers.scale
 	c.send(json.dumps({'type':'TimeScaleVerifyData', 'status':True}) +'\n')
@@ -77,27 +105,24 @@ def UpdateTriggerLanes(updatedtrigger):
 				lane.triggered += 1
 			else:
 				lane.triggered -= 1
-			break
+			return
+	for lane in bridgelanes:
+		if updatedtrigger.id == lane.id:
+			if (updatedtrigger.triggered):
+				lane.triggered += 1
+			else:
+				lane.triggered -= 1
+			return
 
-# def ManageBridge(c):
-# 	global bridgeopened
-# 	global bridgeopen
-# 	if (!bridgeopened and (boat.triggered || boat2.triggered) and (!13.triggered)):
-# 		trafficlighttored
-# 		wait
-# 		global bridgeopened
-# 		bridgeopened = True
-# 		SendBridgeData(c)
-# 	else if (bridgeopened and !boat.triggered and !boat2.triggered)
-
-def ManageTraffic(c):
-	sleep(5)
-	alltriggeredlanes = gettriggeredlanes()
-	if not (alltriggeredlanes == []):
-		resettrafficlights(c)
-		mostlanespath, mostlanespathprioritylanes = RecursionSearch(alltriggeredlanes, lanes, [], [])
-		setlanetrafficlights(mostlanespath, "green")
-		c.send(TrafficlightToJSON(mostlanespath))
+def ManageTraffic(c, timer):
+	# sleep(5)
+	# alltriggeredlanes = gettriggeredlanes()
+	# if not (alltriggeredlanes == []):
+	# 	resettrafficlights(c)
+	# 	mostlanespath, mostlanespathprioritylanes = RecursionSearch(alltriggeredlanes, lanes, [], [])
+	# 	setlanetrafficlights(mostlanespath, "green")
+	# 	c.send(TrafficlightToJSON(mostlanespath))
+	ManageBridge(c)
 
 def setlanetrafficlights(setlanes, color):
 	for setlane in setlanes:
@@ -197,7 +222,7 @@ def main(port):
 	ListenThread = MThread("ClientListenThread",c,True)
    	ListenThread.start()
    	while True:
-   		ManageTraffic(c)
+   		ManageTraffic(c,0)
 
 def InitLanes(lanedependencies):
 	lanes = []
@@ -206,11 +231,11 @@ def InitLanes(lanedependencies):
 	return lanes
 
 
-port = 12476
+port = 12477
 lanedependencies = [[5,9],[5,9,10,11,12],[5,7,8,9,11,12],[8,12,6],[1,2,3,8,9,11,12],[4,5],
 					[3,11],[3,4,5,11,12],[1,2,3,5,11,12],[2,5],[2,3,5,8,7,9],[2,3,4,5,8,9]]
 lanes = InitLanes(lanedependencies)
-bridgeopen = False
-bridgeopened = False
+bridgelanes = [Lane("1.13"),Lane("4.1"),Lane("4.2"),Lane("3.1"),Lane("2.1")]
+bridgestatus = Bridge()
 timescale = 0
 main(port)

@@ -3,6 +3,7 @@ import json
 from classes.TrafficLight import TrafficStuff
 from classes.TrafficLight import trafficLight
 from classes.Bridge import Bridge
+from classes.Intersection import Intersection
 import threading
 from time import sleep   
 import time 
@@ -77,7 +78,6 @@ def WaitForClient(socket):
    	return c
 
 def UpdateTriggers(c,updatedtriggers):
-	print updatedtriggers
 	if (updatedtriggers.type == "PrimaryTrigger"):
 		UpdateTriggerLanes(updatedtriggers)
 	elif (updatedtriggers.type == "SecondaryTrigger"):
@@ -99,30 +99,72 @@ def ConfirmTimescale(c, updatedtriggers):
 	c.send(json.dumps({'type':'TimeScaleVerifyData', 'status':True}) +'\n')
 
 def UpdateTriggerLanes(updatedtrigger):
-	for lane in lanes:
-		if (updatedtrigger.id == lane.id):
-			if (updatedtrigger.triggered):
-				lane.triggered += 1
-			else:
-				lane.triggered -= 1
-			return
-	for lane in bridgelanes:
+	print updatedtrigger
+	if UpdateSpecificLanes(updatedtrigger, lanes): return
+	if UpdateSpecificLanes(updatedtrigger, bicyclelanes): return
+	if UpdateSpecificLanes(updatedtrigger, bridgelanes): return
+
+def UpdateSpecificLanes(updatetrigger,specificlanes):
+	for lane in specificlanes:
 		if updatedtrigger.id == lane.id:
 			if (updatedtrigger.triggered):
 				lane.triggered += 1
 			else:
 				lane.triggered -= 1
-			return
+			return True
+	return False
 
 def ManageTraffic(c, timer):
-	# sleep(5)
-	# alltriggeredlanes = gettriggeredlanes()
-	# if not (alltriggeredlanes == []):
-	# 	resettrafficlights(c)
-	# 	mostlanespath, mostlanespathprioritylanes = RecursionSearch(alltriggeredlanes, lanes, [], [])
-	# 	setlanetrafficlights(mostlanespath, "green")
-	# 	c.send(TrafficlightToJSON(mostlanespath))
+	alltriggeredlanes = gettriggeredlanes(lanes)
+	for triggerlane in alltriggeredlanes:
+		if triggerlane in intersectionstatus.previouslanes:
+			alltriggeredlanes.remove(triggerlane)
+	if not (alltriggeredlanes == []) and (time.time() - intersectionstatus.timer) > 7:
+		resettrafficlights(c)
+		mostlanespath, mostlanespathprioritylanes = RecursionSearch(alltriggeredlanes, lanes, [], [])
+		mostlanespath = searchbyciclelanes(mostlanespath,alltriggeredlanes)
+		intersectionstatus.previouslanes = mostlanespath
+		intersectionstatus.timer = time.time()
+		setlanetrafficlights(mostlanespath, "green")
+		c.send(TrafficlightToJSON(mostlanespath))
 	ManageBridge(c)
+
+def searchbyciclelanes(mostlanespath,triggeredlanes):
+	allprioritylanes = []
+	allremaininglanes = []
+	for mostlane in mostlanespath:
+		if mostlane in triggeredlanes:
+			allprioritylanes.append(mostlane)
+		else:
+			allremaininglanes.append(mostlane)
+	newlanes = []
+	triggeredbicyclepedestrianlanes = gettriggeredlanes(bicyclelanes) + gettriggeredlanes(pedestrianlanes)
+	for lane in triggeredbicyclepedestrianlanes:
+		newlanes = newlanes + islaneinlanedependencies(lane, allprioritylanes)
+	copynewlanes = list(newlanes)
+	if len(newlanes) > 0:
+		return newlanes + allprioritylanes + addremaininglanes(allremaininglanes, newlanes)
+	else:
+		return mostlanespath
+
+def addremaininglanes(remaininglanes, newlanes):
+	goodlanes = []
+	for remaininglane in remaininglanes:
+		goodlane = True
+		for newlane in newlanes:
+			for dependedlane in newlane.dependedlanes:
+				if ("1."+str(dependedlane) == remaininglane.id):
+					goodlane = False
+		if goodlane:
+			goodlanes.append(remaininglane)
+	return goodlanes
+
+def islaneinlanedependencies(inlane, priortylanes):
+	for dependedlane in inlane.dependedlanes:
+		for prioritylane in priortylanes:
+			if ("1." + str(dependedlane)) == prioritylane.id:
+				return []
+	return [inlane]
 
 def setlanetrafficlights(setlanes, color):
 	for setlane in setlanes:
@@ -143,9 +185,9 @@ def resettrafficlights(c):
 			newsetlanes.append(lane)
 	c.send(TrafficlightToJSON(newsetlanes))
 
-def gettriggeredlanes():
+def gettriggeredlanes(triggerlanes):
 	alltriggeredlanes = []
-	for lane in lanes:
+	for lane in triggerlanes:
 		if lane.triggered > 0:
 			# (sleep(0.5))
 			# print str(lane.id) + "is triggered: " + str(lane.triggered)
@@ -171,8 +213,9 @@ def CopyOfListWithObject(oldlist, addobject):
 def AddLanesFromListOfIDs(addlist, listids):
 	newlist = list(addlist)
 	for laneid in listids:
+		carid = "1."+str(laneid)
 		for lane in lanes:
-			if lane.id == str(laneid):
+			if lane.id == str(carid):
 				newlist.append(lane)
 	return newlist
 
@@ -215,27 +258,29 @@ def RecursionSearch(remainingprioritylanes, remaininglanes, currentlanes, notusa
 # 		leastremainingprioritylanes = mostlanespathprioritylanes1
 # 	return mostlanespath, leastremainingprioritylanes
 
+def initialetrafficlights(c):
+	bridgelanes[0].trafficlightstatus = "green"
+	c.send(TrafficlightToJSON(lanes+bicyclelanes+bridgelanes))
 
 def main(port):
 	socket = SocketSetup(port)
 	c = WaitForClient(socket)
 	ListenThread = MThread("ClientListenThread",c,True)
    	ListenThread.start()
+   	initialetrafficlights(c)
+   	sleep(5)
    	while True:
    		ManageTraffic(c,0)
 
-def InitLanes(lanedependencies):
-	lanes = []
-	for x in range(0,len(lanedependencies)):
-		lanes.append(Lane(str(x+1),lanedependencies[x]))
-	return lanes
-
-
 port = 12477
-lanedependencies = [[5,9],[5,9,10,11,12],[5,7,8,9,11,12],[8,12,6],[1,2,3,8,9,11,12],[4,5],
-					[3,11],[3,4,5,11,12],[1,2,3,5,11,12],[2,5],[2,3,5,8,7,9],[2,3,4,5,8,9]]
-lanes = InitLanes(lanedependencies)
-bridgelanes = [Lane("1.13"),Lane("4.1"),Lane("4.2"),Lane("3.1"),Lane("2.1")]
+lanes = [Lane("1.1",[5,9]),Lane("1.2",[5,9,10,11,12]),Lane("1.3",[5,7,8,9,11,12]),Lane("1.4",[8,12,6]),
+		Lane("1.5",[1,2,3,8,9,11,12]),Lane("1.6",[4,5]),Lane("1.7",[3,11]),Lane("1.8",[3,4,5,11,12]),
+		Lane("1.9",[1,2,3,5,11,12]),Lane("1.10",[2,5]),Lane("1.11",[2,3,5,8,7,9]),Lane("1.12",[2,3,4,5,8,9])]
+bicyclelanes = [Lane("2.1",[1,2,3,4,8,12]),Lane("2.2",[3,4,5,7,11]),Lane("2.3",[2,5,7,8,9,10]),Lane("2.4",[1,5,9,10,11,12])]
+pedestrianlanes = [Lane("3.1.1-3",[1,2,3]),Lane("3.2.1-3",[5,4]),Lane("3.3.1-3",[8,8,9]),Lane("3.4.1-3",[10,11,12]),
+				  Lane("3.1.2-4",[4,8,12]),Lane("3.2.2-4",[3,7,11]),Lane("3.3.2-4",[2,5,10]),Lane("3.4.2-4",[1,5,9])]
+bridgelanes = [Lane("1.13"),Lane("4.1"),Lane("4.2")]
 bridgestatus = Bridge()
+intersectionstatus = Intersection()
 timescale = 0
-main(port)
+# main(port)

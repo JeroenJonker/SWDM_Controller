@@ -4,6 +4,7 @@ from classes.TrafficLight import TrafficStuff
 from classes.TrafficLight import trafficLight
 from classes.Bridge import Bridge
 from classes.Intersection import Intersection
+from classes.UI import UIhread
 import threading
 from time import sleep   
 import time 
@@ -143,6 +144,7 @@ def ManageTraffic(c, timer):
 		intersectionstatus.currentlanes = mostlanespath
 		setlanetrafficlights(intersectionstatus.currentlanes, "green")
 	elif (time.time() - intersectionstatus.timer > 4 and intersectionstatus.resseted):
+		UI.update(intersectionstatus.currentlanes)
 		c.send(TrafficlightToJSON(intersectionstatus.currentlanes))
 		intersectionstatus.resseted = False
 	ManageBridge(c)
@@ -209,7 +211,9 @@ def resettrafficlights(c):
 		if lane.trafficlightstatus == "green":
 			lane.trafficlightstatus = "red"
 			newsetlanes.append(lane)
-	c.send(TrafficlightToJSON(newsetlanes))
+	if newsetlanes != []:
+		UI.update(newsetlanes)
+		c.send(TrafficlightToJSON(newsetlanes))
 
 def gettriggeredlanes(triggerlanes):
 	alltriggeredlanes = []
@@ -285,7 +289,6 @@ def RecursionSearch(remainingprioritylanes, remaininglanes, currentlanes, notusa
 # 	return mostlanespath, leastremainingprioritylanes
 
 def initialetrafficlights(c):
-	bridgelanes[0].trafficlightstatus = "green"
 	c.send(TrafficlightToJSON(lanes+bicyclelanes+bridgelanes))
 	sleep(0.1)
 	c.send(TrafficlightToJSON(pedestrianlanes))
@@ -300,7 +303,7 @@ def main(port):
    	while True:
    		ManageTraffic(c,0)
 
-port = 12477
+port = 12478
 lanes = [Lane("1.1",[5,9]),Lane("1.2",[5,9,10,11,12]),Lane("1.3",[5,7,8,9,11,12]),Lane("1.4",[8,12,6]),
 		Lane("1.5",[1,2,3,8,9,11,12]),Lane("1.6",[4,5]),Lane("1.7",[3,11]),Lane("1.8",[3,4,5,11,12]),
 		Lane("1.9",[1,2,3,5,11,12]),Lane("1.10",[2,5]),Lane("1.11",[2,3,5,8,7,9]),Lane("1.12",[2,3,4,5,8,9])]
@@ -315,4 +318,7 @@ bridgelanes = [Lane("1.13"),Lane("4.1"),Lane("4.2")]
 bridgestatus = Bridge()
 intersectionstatus = Intersection()
 timescale = 0
+bridgelanes[0].trafficlightstatus = "green"
+UI = UIhread("TrafficUI", lanes, bicyclelanes, pedestrianlanes, False)
+UI.start()
 main(port)

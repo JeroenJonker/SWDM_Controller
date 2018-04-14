@@ -1,7 +1,7 @@
 from Lane import Lane
 import time
 from time import sleep
-from TrafficLight import TrafficStuff, trafficLight
+from TrafficLight import TrafficSendData, TrafficLight
 import json  
 
 class Intersection(object):
@@ -54,6 +54,8 @@ class Intersection(object):
 			newlanes = newlanes + islaneinlanedependencies(lane, allprioritylanes)
 		copynewlanes = list(newlanes)
 		if len(newlanes) > 0:
+			for lane in newlanes:
+				lane.trafficlightstatus = "green"
 			return newlanes + allprioritylanes + addremaininglanes(allremaininglanes, newlanes)
 		else:
 			return mostlanespath
@@ -66,9 +68,6 @@ class Intersection(object):
 			for lane in self.carlanes:
 				if setlane.id == lane.id:
 					lane.trafficlightstatus = color
-		for lane in self.carlanes:
-			sleep(0.01)
-			print str(lane.id) + ":" + str(lane.trafficlightstatus)
 
 	def resettrafficlights(self,c):
 		newsetlanes = []
@@ -181,8 +180,8 @@ def jdefault(o):
     return o.__dict__
 
 def TrafficlightToJSON(trafficinput):
-	output = TrafficStuff()
+	output = TrafficSendData()
 	for x in trafficinput:
-		newtrafficlightstatus = trafficLight(x.id, x.trafficlightstatus)
+		newtrafficlightstatus = TrafficLight(x.id, x.trafficlightstatus)
 		output.trafficLights.append(newtrafficlightstatus)
 	return json.dumps(output, default=jdefault) + '\n'

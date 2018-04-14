@@ -17,6 +17,7 @@ class Bridge(object):
 				if (time.time() - self.timer) > 25 or self.allboatspassed:
 					self.bridgeopen = not self.bridgeopen
 					self.SendBridgeData(c)
+					self.lanes[0].trafficlightstatus = "red"
 					self.timer = 0
 					self.allboatspassed = False
 			elif (not self.bridgeopened):
@@ -29,6 +30,7 @@ class Bridge(object):
 					if lane.id.find("4.") == 0 and lane.triggered:
 						self.allboatspassed = False
 						break
+		return self.bridgeopen, self.bridgeopened, self.lanes
 
 	def SendBridgeData(self, c):
 		c.send(json.dumps({'type':'BridgeData','bridgeOpen':self.bridgeopen})+'\n')

@@ -1,7 +1,6 @@
 import socket
 import json   
-from classes.TrafficLight import TrafficStuff
-from classes.TrafficLight import trafficLight
+from classes.TrafficLight import TrafficSendData, TrafficLight
 from classes.Bridge import Bridge
 from classes.Intersection import Intersection
 from classes.UI import UIhread
@@ -11,7 +10,7 @@ import time
 from collections import namedtuple
 from classes.Lane import Lane
 
-class MThread(threading.Thread):
+class ClientListenhread(threading.Thread):
 	def __init__(self, name, c, keep):
 		threading.Thread.__init__(self)
 		self.name = name
@@ -33,9 +32,60 @@ class MThread(threading.Thread):
 			for message in splittedmessage:
 				print "this is message: " + str(message)
 				newinfo = json.loads(message, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
-				UpdateTriggers(self.c,newinfo)
+				self.UpdateTriggers(newinfo)
 
+	def UpdateTriggers(self,updatedtriggers):
+		if (updatedtriggers.type == "PrimaryTrigger"):
+			self.UpdateTriggerLanes(updatedtriggers)
+		elif (updatedtriggers.type == "SecondaryTrigger"):
+			self.UpdateTriggerLanes(updatedtriggers)
+		elif (updatedtriggers.type == "BridgeStatusData"):
+			bridgestatus.bridgeopened = updatedtriggers.opened
+			UI.updateBridgeStatus(bridgestatus.bridgeopen, bridgestatus.bridgeopened)
+		elif (updatedtriggers.type == "TimeScaleData"):
+			print "ok"
+			# self.ConfirmTimescale(self.c, updatedtriggers)
 
+	def UpdateTriggerLanes(self,updatedtrigger):
+		if self.UpdateIntersectionTriggerLanes(updatedtrigger, intersectionstatus.carlanes): return
+		if self.UpdateSpecificLanes(updatedtrigger, intersectionstatus.bicyclelanes): return
+		if self.UpdateSpecificLanes(updatedtrigger, bridgestatus.lanes): return
+		if self.UpdateSpecificLanes(updatedtrigger, intersectionstatus.pedestrianlanes): return
+
+	def UpdateSpecificLanes(self,updatedtrigger,specificlanes):
+		for lane in specificlanes:
+			if updatedtrigger.id == lane.id:
+				if (updatedtrigger.triggered):
+					lane.triggered += 1
+				else:
+					lane.triggered -= 1
+				return True
+		return False
+
+	def UpdateIntersectionTriggerLanes(self,updatedtrigger, specificlanes):
+		for lane in specificlanes:
+			if updatedtrigger.id == lane.id:
+				if (updatedtrigger.triggered):
+					lane.triggered += 1
+					if lane.triggered == 2:
+						intersectionstatus.secondarytriggeredlanes.append(lane)
+						intersectionstatus.primarytriggeredlanes.remove(lane)
+					elif lane.triggered == 1:
+						intersectionstatus.primarytriggeredlanes.append(lane)
+				else:
+					lane.triggered -= 1
+					if lane.triggered == 1:
+						intersectionstatus.secondarytriggeredlanes.remove(lane)
+						intersectionstatus.primarytriggeredlanes.append(lane)
+					elif lane.triggered == 0:
+						intersectionstatus.primarytriggeredlanes.remove(lane)
+				return True
+		return False
+
+	def ConfirmTimescale(self, c, updatedtriggers):
+		global timescale 
+		timescale = updatedtriggers.scale
+		c.send(json.dumps({'type':'TimeScaleVerifyData', 'status':True}) +'\n')
 
 def jdefault(o):
     if isinstance(o, set):
@@ -49,85 +99,17 @@ def SocketSetup(port):
 	print "socket is listening on port: %s" %(port) 
 	return s
 
-def TrafficlightToJSON(trafficinput):
-	output = TrafficStuff()
-	for x in trafficinput:
-		newtrafficlightstatus = trafficLight(x.id, x.trafficlightstatus)
-		output.trafficLights.append(newtrafficlightstatus)
-	return json.dumps(output, default=jdefault) + '\n'
-
 def WaitForClient(socket):
    	c, addr = socket.accept()
    	print 'Got connection from', addr
    	return c
 
-def UpdateTriggers(c,updatedtriggers):
-	if (updatedtriggers.type == "PrimaryTrigger"):
-		UpdateTriggerLanes(updatedtriggers)
-	elif (updatedtriggers.type == "SecondaryTrigger"):
-		UpdateTriggerLanes(updatedtriggers)
-	elif (updatedtriggers.type == "BridgeStatusData"):
-		bridgestatus.bridgeopened = updatedtriggers.opened
-	elif (updatedtriggers.type == "TimeScaleData"):
-		print "ok"
-		# ConfirmTimescale(c, updatedtriggers)
-
-def SendBridgeData(c):
-	c.send(json.dumps({'type':'BridgeData','bridgeOpen':bridgestatus.bridgeopen})+'\n')
-
-def ConfirmTimescale(c, updatedtriggers):
-	global timescale 
-	timescale = updatedtriggers.scale
-	c.send(json.dumps({'type':'TimeScaleVerifyData', 'status':True}) +'\n')
-
-def UpdateTriggerLanes(updatedtrigger):
-	if UpdateIntersectionTriggerLanes(updatedtrigger, intersectionstatus.carlanes): return
-	if UpdateSpecificLanes(updatedtrigger, intersectionstatus.bicyclelanes): return
-	if UpdateSpecificLanes(updatedtrigger, bridgestatus.lanes): return
-	if UpdateSpecificLanes(updatedtrigger, intersectionstatus.pedestrianlanes): return
-
-def UpdateSpecificLanes(updatedtrigger,specificlanes):
-	for lane in specificlanes:
-		if updatedtrigger.id == lane.id:
-			if (updatedtrigger.triggered):
-				lane.triggered += 1
-			else:
-				lane.triggered -= 1
-			return True
-	return False
-
-def UpdateIntersectionTriggerLanes(updatedtrigger, specificlanes):
-	for lane in specificlanes:
-		if updatedtrigger.id == lane.id:
-			if (updatedtrigger.triggered):
-				lane.triggered += 1
-				if lane.triggered == 2:
-					intersectionstatus.secondarytriggeredlanes.append(lane)
-					intersectionstatus.primarytriggeredlanes.remove(lane)
-				elif lane.triggered == 1:
-					intersectionstatus.primarytriggeredlanes.append(lane)
-			else:
-				lane.triggered -= 1
-				if lane.triggered == 1:
-					intersectionstatus.secondarytriggeredlanes.remove(lane)
-					intersectionstatus.primarytriggeredlanes.append(lane)
-				elif lane.triggered == 0:
-					intersectionstatus.primarytriggeredlanes.remove(lane)
-			return True
-	return False
-
-
-
-# def CheckBestPath(remainingprioritylanes,currentlanes, remaininglanes, currentlane, notusablelanes, mostlanespath, leastremainingprioritylanes):
-# 	copyofremaininglanes = CopyOfListWithoutObject(remaininglanes,currentlane)
-# 	copyofcurrentlanes = CopyOfListWithObject(currentlanes,currentlane)
-# 	copyofnotusablelanes = AddLanesFromListOfIDs(notusablelanes,currentlane.dependedlanes)
-# 	mostlanespath1, mostlanespathprioritylanes1 = RecursionSearch(remainingprioritylanes, copyofremaininglanes, copyofcurrentlanes, copyofnotusablelanes)
-# 	if (len(mostlanespathprioritylanes1) < len(leastremainingprioritylanes) or
-# 		(len(mostlanespathprioritylanes1) == len(leastremainingprioritylanes) and len(mostlanespath1) > len(mostlanespath))):
-# 		mostlanespath = mostlanespath1
-# 		leastremainingprioritylanes = mostlanespathprioritylanes1
-# 	return mostlanespath, leastremainingprioritylanes
+def TrafficlightToJSON(trafficinput):
+	output = TrafficSendData()
+	for x in trafficinput:
+		newtrafficlightstatus = TrafficLight(x.id, x.trafficlightstatus)
+		output.trafficLights.append(newtrafficlightstatus)
+	return json.dumps(output, default=jdefault) + '\n'
 
 def initialetrafficlights(c):
 	c.send(TrafficlightToJSON(intersectionstatus.carlanes+intersectionstatus.bicyclelanes+bridgestatus.lanes))
@@ -137,18 +119,20 @@ def initialetrafficlights(c):
 def main(port):
 	socket = SocketSetup(port)
 	c = WaitForClient(socket)
-	ListenThread = MThread("ClientListenThread",c,True)
+	ListenThread = ClientListenhread("ClientListenThread",c,True)
    	ListenThread.start()
    	initialetrafficlights(c)
-   	sleep(5)
+   	sleep(4)
    	while True:
    		UI.update(intersectionstatus.ManageTraffic(c))
-		bridgestatus.ManageBridge(c)
+   		bridegeopen, brideopened, bridgelanes = bridgestatus.ManageBridge(c)
+   		UI.update(bridgelanes)
+		UI.updateBridgeStatus(bridegeopen, brideopened)
 
 port = 12478
 bridgestatus = Bridge()
 intersectionstatus = Intersection()
 timescale = 0
-UI = UIhread("TrafficUI", intersectionstatus.carlanes, intersectionstatus.bicyclelanes, intersectionstatus.pedestrianlanes, False)
+UI = UIhread("Controller", intersectionstatus.carlanes, intersectionstatus.bicyclelanes, intersectionstatus.pedestrianlanes, bridgestatus.lanes)
 UI.start()
 main(port)

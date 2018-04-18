@@ -49,7 +49,8 @@ class ClientListenhread(threading.Thread):
 	def UpdateTriggerLanes(self,updatedtrigger):
 		if self.UpdateIntersectionTriggerLanes(updatedtrigger, intersectionstatus.carlanes): return
 		if self.UpdateSpecificLanes(updatedtrigger, intersectionstatus.bicyclelanes): return
-		if self.UpdateSpecificLanes(updatedtrigger, bridgestatus.lanes): return
+		if self.UpdateSpecificLanes(updatedtrigger, bridgestatus.carlanes): return
+		if self.UpdateSpecificLanes(updatedtrigger, bridgestatus.boatlanes): return
 		if self.UpdateSpecificLanes(updatedtrigger, intersectionstatus.pedestrianlanes): return
 
 	def UpdateSpecificLanes(self,updatedtrigger,specificlanes):
@@ -112,7 +113,7 @@ def TrafficlightToJSON(trafficinput):
 	return json.dumps(output, default=jdefault) + '\n'
 
 def initialetrafficlights(c):
-	c.send(TrafficlightToJSON(intersectionstatus.carlanes+intersectionstatus.bicyclelanes+bridgestatus.lanes))
+	c.send(TrafficlightToJSON(intersectionstatus.carlanes+intersectionstatus.bicyclelanes+bridgestatus.carlanes+bridgestatus.boatlanes))
 	sleep(0.1)
 	c.send(TrafficlightToJSON(intersectionstatus.pedestrianlanes))
 
@@ -133,6 +134,6 @@ port = 12478
 bridgestatus = Bridge()
 intersectionstatus = Intersection()
 timescale = 0
-UI = UIhread("Controller", intersectionstatus.carlanes, intersectionstatus.bicyclelanes, intersectionstatus.pedestrianlanes, bridgestatus.lanes)
+UI = UIhread("Controller", intersectionstatus.carlanes, intersectionstatus.bicyclelanes, intersectionstatus.pedestrianlanes, bridgestatus.carlanes + bridgestatus.boatlanes)
 UI.start()
 main(port)

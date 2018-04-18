@@ -92,15 +92,15 @@ class Intersection(object):
 		leastprioritylanes = remainingprioritylanes
 		for remainingprioritylane in remainingprioritylanes:
 			if remainingprioritylane in remaininglanes:
-				copyofremainingprioritylanes = self.GetRemainingLanes(remainingprioritylanes, remainingprioritylane)
-				copyofremaininglanes = self.GetRemainingLanes(remaininglanes,remainingprioritylane)
+				copyofremainingprioritylanes = self.GetNewRemainingLanes(remainingprioritylanes, remainingprioritylane)
+				copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes,remainingprioritylane)
 				copyofcurrentlanes = CopyOfListWithObject(currentlanes,remainingprioritylane)
 				mostlanespath, mostlanespathprioritylanes = self.RecursionSearch(copyofremainingprioritylanes, copyofremaininglanes, copyofcurrentlanes)
 				if (len(mostlanespathprioritylanes) < len(leastprioritylanes) or
 					(len(mostlanespathprioritylanes) == len(leastprioritylanes) and len(mostlanespath) > len(bestpath))):
 					bestpath, leastprioritylanes = mostlanespath, mostlanespathprioritylanes
 		for remaininglane in remaininglanes:
-			copyofremaininglanes = self.GetRemainingLanes(remaininglanes,remaininglane)
+			copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes,remaininglane)
 			copyofcurrentlanes = CopyOfListWithObject(currentlanes,remaininglane)
 			mostlanespath, mostlanespathprioritylanes = self.RecursionSearch(remainingprioritylanes, copyofremaininglanes, copyofcurrentlanes)
 			if (len(mostlanespathprioritylanes) < len(leastprioritylanes) or
@@ -108,7 +108,7 @@ class Intersection(object):
 				bestpath, leastprioritylanes = mostlanespath, mostlanespathprioritylanes
 		return bestpath, leastprioritylanes
 
-	def GetRemainingLanes(self, oldlist, newobject):
+	def GetNewRemainingLanes(self, oldlist, newobject):
 		newlist = list(oldlist)
 		newlist.remove(newobject)
 		for laneid in newobject.dependedlanes:
@@ -117,17 +117,6 @@ class Intersection(object):
 				if lane.id == str(carid):
 					newlist.remove(lane)
 		return newlist
-
-# def islaneinlanes(searchlane, lanes):
-# 	for lane in lanes:
-# 		if searchlane == lane:
-# 			return True
-# 	return False
-
-# def CopyOfListWithoutObject(oldlist, removeobject):
-# 	newlist = list(oldlist)
-# 	newlist.remove(removeobject)
-# 	return newlist
 
 def CopyOfListWithObject(oldlist, addobject):
 	newlist = list(oldlist)

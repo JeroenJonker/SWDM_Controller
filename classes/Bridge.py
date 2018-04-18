@@ -1,4 +1,5 @@
 from Lane import Lane
+from TrafficLight import *
 import time
 import json
 
@@ -16,23 +17,23 @@ class Bridge(object):
 	def ManageBridge(self, c):
 		if (self.bridgeopen == self.bridgeopened):
 			if self.bridgeopen:
-				return self.brideopen, self.bridgeopened, BridgeOpenRoutine(c)
-			elif not bridgeopen:
-				return return self.brideopen, self.bridgeopened, BridgeClosedRoutine(c)
+				return self.bridgeopen, self.bridgeopened, self.BridgeOpenRoutine(c)
+			elif not self.bridgeopen:
+				return self.bridgeopen, self.bridgeopened, self.BridgeClosedRoutine(c)
 		return self.bridgeopen, self.bridgeopened, []
 
 	def BridgeClosedRoutine(self,c):
-		if carlanes[0].trafficlightstatus == "red":
-			carlanes[0].trafficlightstatus = "green"
-			c.send(TrafficlightToJSON(carlanes))
+		if self.carlanes[0].trafficlightstatus == "red":
+			self.carlanes[0].trafficlightstatus = "green"
+			c.send(TrafficlightToJSON(self.carlanes))
 		else: 
-			for boat in boatlanes: 
+			for boat in self.boatlanes: 
 				if boat.triggered > 0:
-					carlanes[0].trafficlightstatus = "red"
+					self.carlanes[0].trafficlightstatus = "red"
 					self.bridgeopen = not self.bridgeopen
 					self.SendBridgeData(c)
-					c.send(TrafficlightToJSON(carlanes))
-		return carlanes
+					c.send(TrafficlightToJSON(self.carlanes))
+		return self.carlanes
 
 	def BridgeOpenRoutine(self,c):
 		self.allboatspassed = True
@@ -45,13 +46,13 @@ class Bridge(object):
 			self.bridgeopened = not self.bridgeopened
 			self.SendBridgeData(c)
 			self.timer = time.time()
-			for boat in boatlanes:
+			for boat in self.boatlanes:
 				if boat.trafficlightstatus == "green":
 					boat.trafficlightstatus = "red"
 					newsetboats.append(boat)
 			c.send(TrafficlightToJSON(newsetboats))
 		elif not self.allboatspassed and not self.resseted:
-			for boat in boatlanes: 
+			for boat in self.boatlanes: 
 				if boat.trafficlightstatus == "green" and boat.triggered == 0:
 					boat.trafficlightstatus = "red"
 					newsetboats.append(boat)
@@ -59,7 +60,7 @@ class Bridge(object):
 					self.timer = time.time()
 					self.resseted = True
 		elif not self.allboatspassed and time.time() - self.timer > 2 and self.resseted:
-			for boat in boatlanes:
+			for boat in self.boatlanes:
 				if boat.triggered > 0:
 					boat.trafficlightstatus = "green"
 					newsetboats.append(boat)
@@ -77,3 +78,8 @@ def TrafficlightToJSON(trafficinput):
 		newtrafficlightstatus = TrafficLight(x.id, x.trafficlightstatus)
 		output.trafficLights.append(newtrafficlightstatus)
 	return json.dumps(output, default=jdefault) + '\n'
+
+def jdefault(o):
+    if isinstance(o, set):
+        return list(o)
+    return o.__dict__

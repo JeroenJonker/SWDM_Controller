@@ -25,3 +25,11 @@ class MThread(threading.Thread):
 			newinfo = json.loads(received, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
 			print newinfo
 			self.message = newinfo
+
+def getNewLanes(alltriggeredlanes):
+	global currentlanes
+	triggeredlanes = list(alltriggeredlanes)
+	for triggerlane in triggeredlanes:
+		if triggerlane in currentlanes:
+			triggeredlanes.remove(triggerlane)
+	return triggeredlanes

@@ -26,7 +26,7 @@ class ClientListenhread(threading.Thread):
 	def listening(self):
 		received = self.c.recv(1024)
 		if (len(received) > 0):
-			received = received[:-1]
+			received = (received[:-1]).lower()
 			#In python3 .decode('utf-8') / .encode('utf-8') nodig bij received
 			splittedmessage = received.split('\n')
 			for message in splittedmessage:
@@ -35,14 +35,14 @@ class ClientListenhread(threading.Thread):
 				self.UpdateTriggers(newinfo)
 
 	def UpdateTriggers(self,updatedtriggers):
-		if (updatedtriggers.type == "PrimaryTrigger"):
+		if (updatedtriggers.type == "primarytrigger"):
 			self.UpdateTriggerLanes(updatedtriggers)
-		elif (updatedtriggers.type == "SecondaryTrigger"):
+		elif (updatedtriggers.type == "secondarytrigger"):
 			self.UpdateTriggerLanes(updatedtriggers)
-		elif (updatedtriggers.type == "BridgeStatusData"):
+		elif (updatedtriggers.type == "bridgestatusdata"):
 			bridgestatus.bridgeopened = updatedtriggers.opened
 			UI.updateBridgeStatus(bridgestatus.bridgeopen, bridgestatus.bridgeopened)
-		elif (updatedtriggers.type == "TimeScaleData"):
+		elif (updatedtriggers.type == "timescaledata"):
 			print "ok"
 			# self.ConfirmTimescale(self.c, updatedtriggers)
 

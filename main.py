@@ -28,9 +28,10 @@ class ClientListenhread(threading.Thread):
 		if (len(received) > 0):
 			received = (received[:-1]).lower()
 			#In python3 .decode('utf-8') / .encode('utf-8') nodig bij received
+			print received
 			splittedmessage = received.split('\n')
 			for message in splittedmessage:
-				print "this is message: " + str(message)
+				# print "this is message: " + str(message)
 				newinfo = json.loads(message, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
 				self.UpdateTriggers(newinfo)
 

@@ -56,13 +56,6 @@ class Intersection(object):
 
     def SearchBestPath(self, remainingprioritylanes, remaininglanes, currentlanes):
         if len(remainingprioritylanes) > 0:
-            sleep(1)
-            for remlan in remainingprioritylanes:
-                print "prioritylanes" + remlan.id
-            print "newprioritylane: " + str(remainingprioritylanes[0].id)
-            for remlan in remaininglanes:
-                print "remaininglanes:" + str(remlan.id)
-            sleep(1)
             mostprioritylane = remainingprioritylanes[0]
             copyofremainingprioritylanes = self.GetNewRemainingLanes(remainingprioritylanes, mostprioritylane)
             copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, mostprioritylane)

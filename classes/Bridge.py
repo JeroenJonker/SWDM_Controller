@@ -57,12 +57,10 @@ class Bridge(object):
 					self.timer = time.time()
 					break
 		if len(newsetboats) > 0:
-			print str(TrafficlightToJSON(newsetboats))
 			c.send(TrafficlightToJSON(newsetboats))
 		return newsetboats
 
 	def SendBridgeData(self, c):
-		print "hello " + str(self.bridgeopen)
 		c.send(json.dumps({'type':'BridgeData','bridgeOpen':self.bridgeopen})+'\n')
 
 	def AreAllBoatsPassed(self):

@@ -165,10 +165,10 @@ def getseperatedpriorityremaininglanes(mostlanespath, triggeredlanes):
             allprioritylanes.append(mostlane)
         else:
             allremaininglanes.append(mostlane)
-    for lane in allprioritylanes:
-        print "prio: " + lane.id
-    for lane in allremaininglanes:
-        print "rem: " + lane.id
+    # for lane in allprioritylanes:
+    #     print "prio: " + lane.id
+    # for lane in allremaininglanes:
+    #     print "rem: " + lane.id
     return allprioritylanes, allremaininglanes
 
 

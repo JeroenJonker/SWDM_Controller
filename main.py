@@ -8,7 +8,7 @@ import threading
 from time import sleep   
 import time 
 from collections import namedtuple
-from classes.Lane import Lane
+# from classes.Lane import Lane
 
 class ClientListenhread(threading.Thread):
 	def __init__(self, name, c, keep):

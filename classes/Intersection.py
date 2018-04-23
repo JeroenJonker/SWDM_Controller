@@ -9,6 +9,7 @@ class Intersection(object):
     def __init__(self):
         self.currentlanes = []
         self.timer = 0
+        self.alltriggeredlanes = []
         self.primarytriggeredlanes = []
         self.secondarytriggeredlanes = []
         self.resseted = False
@@ -45,45 +46,76 @@ class Intersection(object):
             self.timer = time.time()
             self.resseted = True
         elif (time.time() - self.timer > 4 and self.resseted):
-            alltriggeredlanes = self.getNewLanes(self.getTriggeredLanes())
-            mostlanespath, mostlanespathprioritylanes = self.SearchBestPath(alltriggeredlanes,
-                                                                            self.getNewLanes(self.carlanes), [])
-            self.currentlanes = self.searchbyciclelanes(mostlanespath, alltriggeredlanes)
-            self.setlanetrafficlights(self.currentlanes, "green")
+            # alltriggeredlanes = self.getNewLanes(self.getTriggeredLanes())
+            # mostlanespath, mostlanespathprioritylanes = self.SearchBestPath(alltriggeredlanes,
+            #                                                                 self.getNewLanes(self.carlanes), [])
+            # self.currentlanes = self.searchbyciclelanes(mostlanespath, alltriggeredlanes)
+            for lane in self.alltriggeredlanes:
+            	print lane.id
+            print "=========="
+            self.currentlanes = self.BestPath(self.alltriggeredlanes, [])
+            for lane in self.currentlanes:
+            	print lane.id
+            print "---------------"
+            for lane in self.currentlanes:
+            	lane.trafficlightstatus = "green"
+            # self.setlanetrafficlights(self.currentlanes, "green")
             c.send(TrafficlightToJSON(self.currentlanes))
             self.resseted = False
         return self.currentlanes
 
-    def SearchBestPath(self, remainingprioritylanes, remaininglanes, currentlanes):
-        if len(remainingprioritylanes) > 0:
-            mostprioritylane = remainingprioritylanes[0]
-            copyofremainingprioritylanes = self.GetNewRemainingLanes(remainingprioritylanes, mostprioritylane)
-            copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, mostprioritylane)
-            copyofcurrentlanes = CopyOfListWithObject(currentlanes, mostprioritylane)
-            return self.RecursionSearch(copyofremainingprioritylanes, copyofremaininglanes, copyofcurrentlanes)
-        else:
-            return self.RecursionSearch(remainingprioritylanes, remaininglanes, currentlanes)
+    def BestPath(self, remaininglanes, chosenlanes):
+    	for remaininglane in remaininglanes:
+    		goodlane = True
+    		for dependedlane in remaininglane.dependedlanes:
+    			for chosenlane in chosenlanes:
+    				if "1." + str(dependedlane) == chosenlane.id:
+    					goodlane = False
+    					break
+    			if not goodlane:
+    				break
+    		if goodlane:
+    			chosenlanes.append(remaininglane)
+    			copyremaininglanes = list(remaininglanes)
+    			copyremaininglanes.remove(remaininglane)
+    			for dependedlane in remaininglane.dependedlanes:
+    				for copyremaininglane in copyremaininglanes:
+    					if "1." + str(dependedlane) == copyremaininglane.id:
+    						copyremaininglanes.remove(copyremaininglane)
+    						break
+    			return self.BestPath(copyremaininglanes, chosenlanes)
+    	return chosenlanes
 
-    def searchbyciclelanes(self, mostlanespath, triggeredlanes):
-        allprioritylanes, allremaininglanes = getseperatedpriorityremaininglanes(mostlanespath, triggeredlanes)
-        newlanes = []
-        triggeredbicyclepedestrianlanes = gettriggeredlanes(self.bicyclelanes) + gettriggeredlanes(self.pedestrianlanes)
-        for lane in triggeredbicyclepedestrianlanes:
-            newlanes = newlanes + islaneinlanedependencies(lane, allprioritylanes)
-        if len(newlanes) > 0:
-            for lane in newlanes:
-                lane.trafficlightstatus = "green"
-            return newlanes + allprioritylanes + addremaininglanes(allremaininglanes, newlanes)
-        else:
-            return mostlanespath
+    # def SearchBestPath(self, remainingprioritylanes, remaininglanes, currentlanes):
+    #     if len(remainingprioritylanes) > 0:
+    #         mostprioritylane = remainingprioritylanes[0]
+    #         copyofremainingprioritylanes = self.GetNewRemainingLanes(remainingprioritylanes, mostprioritylane)
+    #         copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, mostprioritylane)
+    #         copyofcurrentlanes = CopyOfListWithObject(currentlanes, mostprioritylane)
+    #         return self.RecursionSearch(copyofremainingprioritylanes, copyofremaininglanes, copyofcurrentlanes)
+    #     else:
+    #         return self.RecursionSearch(remainingprioritylanes, remaininglanes, currentlanes)
 
-    def setlanetrafficlights(self, setlanes, color):
-        for setlane in setlanes:
-            # sleep(0.3)
-            # print "optimallane: " + str(optimallane.id)
-            for lane in self.carlanes:
-                if setlane.id == lane.id:
-                    lane.trafficlightstatus = color
+    # def searchbyciclelanes(self, mostlanespath, triggeredlanes):
+    #     allprioritylanes, allremaininglanes = getseperatedpriorityremaininglanes(mostlanespath, triggeredlanes)
+    #     newlanes = []
+    #     triggeredbicyclepedestrianlanes = gettriggeredlanes(self.bicyclelanes) + gettriggeredlanes(self.pedestrianlanes)
+    #     for lane in triggeredbicyclepedestrianlanes:
+    #         newlanes = newlanes + islaneinlanedependencies(lane, allprioritylanes)
+    #     if len(newlanes) > 0:
+    #         for lane in newlanes:
+    #             lane.trafficlightstatus = "green"
+    #         return newlanes + allprioritylanes + addremaininglanes(allremaininglanes, newlanes)
+    #     else:
+    #         return mostlanespath
+
+    # def setlanetrafficlights(self, setlanes, color):
+    #     for setlane in setlanes:
+    #         # sleep(0.3)
+    #         # print "optimallane: " + str(optimallane.id)
+    #         for lane in self.carlanes:
+    #             if setlane.id == lane.id:
+    #                 lane.trafficlightstatus = color
 
     def resettrafficlights(self, c):
         newsetlanes = []
@@ -95,102 +127,102 @@ class Intersection(object):
             c.send(TrafficlightToJSON(newsetlanes))
         return newsetlanes
 
-    def AddLanesFromListOfIDs(self, addlist, listids):
-        newlist = list(addlist)
-        for laneid in listids:
-            carid = "1." + str(laneid)
-            for lane in self.carlanes:
-                if lane.id == str(carid):
-                    newlist.append(lane)
-        return newlist
+    # def AddLanesFromListOfIDs(self, addlist, listids):
+    #     newlist = list(addlist)
+    #     for laneid in listids:
+    #         carid = "1." + str(laneid)
+    #         for lane in self.carlanes:
+    #             if lane.id == str(carid):
+    #                 newlist.append(lane)
+    #     return newlist
 
-    def RecursionSearch(self, remainingprioritylanes, remaininglanes, currentlanes):
-        bestpath = currentlanes
-        leastprioritylanes = remainingprioritylanes
-        for remainingprioritylane in remainingprioritylanes:
-            if remainingprioritylane in remaininglanes:
-                copyofremainingprioritylanes = self.GetNewRemainingLanes(remainingprioritylanes, remainingprioritylane)
-                copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, remainingprioritylane)
-                copyofcurrentlanes = CopyOfListWithObject(currentlanes, remainingprioritylane)
-                mostlanespath, mostlanespathprioritylanes = self.RecursionSearch(copyofremainingprioritylanes,
-                                                                                 copyofremaininglanes,
-                                                                                 copyofcurrentlanes)
-                if (len(mostlanespathprioritylanes) < len(leastprioritylanes) or
-                        (len(mostlanespathprioritylanes) == len(leastprioritylanes) and len(mostlanespath) > len(
-                            bestpath))):
-                    bestpath, leastprioritylanes = mostlanespath, mostlanespathprioritylanes
-        for remaininglane in remaininglanes:
-            copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, remaininglane)
-            copyofcurrentlanes = CopyOfListWithObject(currentlanes, remaininglane)
-            mostlanespath, mostlanespathprioritylanes = self.RecursionSearch(remainingprioritylanes,
-                                                                             copyofremaininglanes, copyofcurrentlanes)
-            if (len(mostlanespathprioritylanes) < len(leastprioritylanes) or
-                    (len(mostlanespathprioritylanes) == len(leastprioritylanes) and len(mostlanespath) > len(
-                        bestpath))):
-                bestpath, leastprioritylanes = mostlanespath, mostlanespathprioritylanes
-        return bestpath, leastprioritylanes
+#     def RecursionSearch(self, remainingprioritylanes, remaininglanes, currentlanes):
+#         bestpath = currentlanes
+#         leastprioritylanes = remainingprioritylanes
+#         for remainingprioritylane in remainingprioritylanes:
+#             if remainingprioritylane in remaininglanes:
+#                 copyofremainingprioritylanes = self.GetNewRemainingLanes(remainingprioritylanes, remainingprioritylane)
+#                 copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, remainingprioritylane)
+#                 copyofcurrentlanes = CopyOfListWithObject(currentlanes, remainingprioritylane)
+#                 mostlanespath, mostlanespathprioritylanes = self.RecursionSearch(copyofremainingprioritylanes,
+#                                                                                  copyofremaininglanes,
+#                                                                                  copyofcurrentlanes)
+#                 if (len(mostlanespathprioritylanes) < len(leastprioritylanes) or
+#                         (len(mostlanespathprioritylanes) == len(leastprioritylanes) and len(mostlanespath) > len(
+#                             bestpath))):
+#                     bestpath, leastprioritylanes = mostlanespath, mostlanespathprioritylanes
+#         for remaininglane in remaininglanes:
+#             copyofremaininglanes = self.GetNewRemainingLanes(remaininglanes, remaininglane)
+#             copyofcurrentlanes = CopyOfListWithObject(currentlanes, remaininglane)
+#             mostlanespath, mostlanespathprioritylanes = self.RecursionSearch(remainingprioritylanes,
+#                                                                              copyofremaininglanes, copyofcurrentlanes)
+#             if (len(mostlanespathprioritylanes) < len(leastprioritylanes) or
+#                     (len(mostlanespathprioritylanes) == len(leastprioritylanes) and len(mostlanespath) > len(
+#                         bestpath))):
+#                 bestpath, leastprioritylanes = mostlanespath, mostlanespathprioritylanes
+#         return bestpath, leastprioritylanes
 
-    def GetNewRemainingLanes(self, oldlist, newobject):
-        newlist = list(oldlist)
-        newlist.remove(newobject)
-        for laneid in newobject.dependedlanes:
-            carid = "1." + str(laneid)
-            for lane in newlist:
-                if lane.id == str(carid):
-                    newlist.remove(lane)
-        return newlist
-
-
-def CopyOfListWithObject(oldlist, addobject):
-    newlist = list(oldlist)
-    newlist.append(addobject)
-    return newlist
+#     def GetNewRemainingLanes(self, oldlist, newobject):
+#         newlist = list(oldlist)
+#         newlist.remove(newobject)
+#         for laneid in newobject.dependedlanes:
+#             carid = "1." + str(laneid)
+#             for lane in newlist:
+#                 if lane.id == str(carid):
+#                     newlist.remove(lane)
+#         return newlist
 
 
-def gettriggeredlanes(triggerlanes):
-    alltriggeredlanes = []
-    for lane in triggerlanes:
-        if lane.triggered > 0:
-            # (sleep(0.5))
-            # print str(lane.id) + "is triggered: " + str(lane.triggered)
-            alltriggeredlanes.append(lane)
-    return alltriggeredlanes
+# def CopyOfListWithObject(oldlist, addobject):
+#     newlist = list(oldlist)
+#     newlist.append(addobject)
+#     return newlist
 
 
-def getseperatedpriorityremaininglanes(mostlanespath, triggeredlanes):
-    allprioritylanes = []
-    allremaininglanes = []
-    for mostlane in mostlanespath:
-        if mostlane in triggeredlanes:
-            allprioritylanes.append(mostlane)
-        else:
-            allremaininglanes.append(mostlane)
-    # for lane in allprioritylanes:
-    #     print "prio: " + lane.id
-    # for lane in allremaininglanes:
-    #     print "rem: " + lane.id
-    return allprioritylanes, allremaininglanes
+# def gettriggeredlanes(triggerlanes):
+#     alltriggeredlanes = []
+#     for lane in triggerlanes:
+#         if lane.triggered > 0:
+#             # (sleep(0.5))
+#             # print str(lane.id) + "is triggered: " + str(lane.triggered)
+#             alltriggeredlanes.append(lane)
+#     return alltriggeredlanes
 
 
-def addremaininglanes(remaininglanes, newlanes):
-    goodlanes = []
-    for remaininglane in remaininglanes:
-        goodlane = True
-        for newlane in newlanes:
-            for dependedlane in newlane.dependedlanes:
-                if ("1." + str(dependedlane) == remaininglane.id):
-                    goodlane = False
-        if goodlane:
-            goodlanes.append(remaininglane)
-    return goodlanes
+# def getseperatedpriorityremaininglanes(mostlanespath, triggeredlanes):
+#     allprioritylanes = []
+#     allremaininglanes = []
+#     for mostlane in mostlanespath:
+#         if mostlane in triggeredlanes:
+#             allprioritylanes.append(mostlane)
+#         else:
+#             allremaininglanes.append(mostlane)
+#     # for lane in allprioritylanes:
+#     #     print "prio: " + lane.id
+#     # for lane in allremaininglanes:
+#     #     print "rem: " + lane.id
+#     return allprioritylanes, allremaininglanes
 
 
-def islaneinlanedependencies(inlane, priortylanes):
-    for dependedlane in inlane.dependedlanes:
-        for prioritylane in priortylanes:
-            if ("1." + str(dependedlane)) == prioritylane.id:
-                return []
-    return [inlane]
+# def addremaininglanes(remaininglanes, newlanes):
+#     goodlanes = []
+#     for remaininglane in remaininglanes:
+#         goodlane = True
+#         for newlane in newlanes:
+#             for dependedlane in newlane.dependedlanes:
+#                 if ("1." + str(dependedlane) == remaininglane.id):
+#                     goodlane = False
+#         if goodlane:
+#             goodlanes.append(remaininglane)
+#     return goodlanes
+
+
+# def islaneinlanedependencies(inlane, priortylanes):
+#     for dependedlane in inlane.dependedlanes:
+#         for prioritylane in priortylanes:
+#             if ("1." + str(dependedlane)) == prioritylane.id:
+#                 return []
+#     return [inlane]
 
 
 def jdefault(o):

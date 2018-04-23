@@ -36,7 +36,7 @@ class Bridge(object):
 
 	def BridgeOpenRoutine(self,c):
 		newsetboats = []
-		if self.AreAllBoatsPassed() and time.time() - self.timer > 4:
+		if self.AreAllBoatsPassed() and time.time() - self.timer > 5:
 			self.bridgeopen = not self.bridgeopen
 			self.SendBridgeData(c)
 			self.currentlane.trafficlightstatus = "red"

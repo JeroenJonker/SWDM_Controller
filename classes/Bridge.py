@@ -32,23 +32,18 @@ class Bridge(object):
 					self.bridgeopen = not self.bridgeopen
 					self.SendBridgeData(c)
 					c.send(TrafficlightToJSON(self.carlanes))
+					break
 		return self.carlanes
 
 	def BridgeOpenRoutine(self,c):
 		newsetboats = []
-		if self.AreAllBoatsPassed() and time.time() - self.timer > 5:
-			self.bridgeopen = not self.bridgeopen
-			self.SendBridgeData(c)
-			self.currentlane.trafficlightstatus = "red"
-			newsetboats.append(self.currentlane)
-			self.currentlane = None
-		elif time.time() - self.timer > 5 and not self.currentlane == None:
+		if time.time() - self.timer > 5 and not self.currentlane == None:
 			if self.currentlane.triggered == 0:
 				self.timer = time.time()
 				self.currentlane.trafficlightstatus = "red"
 				newsetboats.append(self.currentlane)
 				self.currentlane = None
-		elif self.currentlane == None and time.time() - self.timer > 4:
+		elif not self.AreAllBoatsPassed() and self.currentlane == None and time.time() - self.timer > 4:
 			for boat in self.boatlanes:
 				if boat.triggered > 0:
 					boat.trafficlightstatus = "green"
@@ -56,6 +51,9 @@ class Bridge(object):
 					self.currentlane = boat
 					self.timer = time.time()
 					break
+		elif self.AreAllBoatsPassed() and time.time() - self.timer > 8:
+			self.bridgeopen = not self.bridgeopen
+			self.SendBridgeData(c)
 		if len(newsetboats) > 0:
 			c.send(TrafficlightToJSON(newsetboats))
 		return newsetboats

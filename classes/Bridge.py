@@ -22,18 +22,20 @@ class Bridge(object):
 		return self.bridgeopen, self.bridgeopened, []
 
 	def BridgeClosedRoutine(self,c):
-		if self.carlanes[0].trafficlightstatus == "red":
+		newsetlane = []
+		if not self.AreAllBoatsPassed() and self.carlanes[0].trafficlightstatus == "green": 
+			self.carlanes[0].trafficlightstatus = "red"
+			self.timer = time.time()
+			newsetlane = self.carlanes
+		elif not self.AreAllBoatsPassed() and time.time() - self.timer > 4:
+			self.bridgeopen = not self.bridgeopen
+			self.SendBridgeData(c)
+		elif self.AreAllBoatsPassed() and self.carlanes[0].trafficlightstatus == "red":
 			self.carlanes[0].trafficlightstatus = "green"
-			c.send(TrafficlightToJSON(self.carlanes))
-		else: 
-			for boat in self.boatlanes: 
-				if boat.triggered > 0:
-					self.carlanes[0].trafficlightstatus = "red"
-					self.bridgeopen = not self.bridgeopen
-					self.SendBridgeData(c)
-					c.send(TrafficlightToJSON(self.carlanes))
-					break
-		return self.carlanes
+			newsetlane = self.carlanes
+		if len(newsetlane) > 0:
+			c.send(TrafficlightToJSON(newsetlane))
+		return newsetlane
 
 	def BridgeOpenRoutine(self,c):
 		newsetboats = []

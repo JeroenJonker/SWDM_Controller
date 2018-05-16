@@ -6,8 +6,10 @@ import json
 class Bridge(object):
 	def __init__(self):
 		self.timer = 0
+		self.statetimer = 0
 		self.bridgeopened = False
 		self.bridgeopen = False
+		self.changestate = False
 		self.carlanes = [Lane("1.13")]
 		self.boatlanes = [Lane("4.1"),Lane("4.2")]
 		self.currentlane = None
@@ -23,13 +25,17 @@ class Bridge(object):
 
 	def BridgeClosedRoutine(self,c):
 		newsetlane = []
-		if not self.AreAllBoatsPassed() and self.carlanes[0].trafficlightstatus == "green": 
-			self.carlanes[0].trafficlightstatus = "red"
+		if not self.changestate and not self.AreAllBoatsPassed() and time.time() - self.statetimer > 16:
+			if self.carlanes[0].trafficlightstatus == "green":
+				self.carlanes[0].trafficlightstatus = "red"
 			self.timer = time.time()
 			newsetlane = self.carlanes
-		elif not self.AreAllBoatsPassed() and time.time() - self.timer > 4:
+			self.changestate = True
+		elif self.changestate and time.time() - self.timer > 4:
 			self.bridgeopen = not self.bridgeopen
 			self.SendBridgeData(c)
+			self.statetimer = time.time()
+			self.changestate = False
 		elif self.AreAllBoatsPassed() and self.carlanes[0].trafficlightstatus == "red":
 			self.carlanes[0].trafficlightstatus = "green"
 			newsetlane = self.carlanes
@@ -39,13 +45,22 @@ class Bridge(object):
 
 	def BridgeOpenRoutine(self,c):
 		newsetboats = []
-		if time.time() - self.timer > 5 and not self.currentlane == None:
-			if self.currentlane.triggered == 0:
-				self.timer = time.time()
+		if not self.changestate and (self.AreAllBoatsPassed() or time.time() - self.statetimer > 16):
+			if self.currentlane != None:
 				self.currentlane.trafficlightstatus = "red"
-				newsetboats.append(self.currentlane)
-				self.currentlane = None
-		elif not self.AreAllBoatsPassed() and self.currentlane == None and time.time() - self.timer > 4:
+			self.changestate = True
+			self.timer = time.time()
+		elif self.changestate and time.time() - self.timer > 4:
+			self.bridgeopen = not self.bridgeopen
+			self.statetimer = time.time()
+			self.SendBridgeData(c)
+			self.changestate = False
+		elif time.time() - self.timer > 3 and not self.currentlane == None and self.currentlane.triggered == 0:
+			self.timer = time.time()
+			self.currentlane.trafficlightstatus = "red"
+			newsetboats.append(self.currentlane)
+			self.currentlane = None
+		elif not self.AreAllBoatsPassed() and self.currentlane == None and time.time() - self.timer > 2:
 			for boat in self.boatlanes:
 				if boat.triggered > 0:
 					boat.trafficlightstatus = "green"
@@ -53,9 +68,6 @@ class Bridge(object):
 					self.currentlane = boat
 					self.timer = time.time()
 					break
-		elif self.AreAllBoatsPassed() and time.time() - self.timer > 8:
-			self.bridgeopen = not self.bridgeopen
-			self.SendBridgeData(c)
 		if len(newsetboats) > 0:
 			c.send(TrafficlightToJSON(newsetboats))
 		return newsetboats

@@ -24,11 +24,11 @@ class ClientListenhread(threading.Thread):
 		print "exiting" + self.name
 
 	def listening(self):
-		received = self.c.recv(1024)
+		received = self.c.recv(2048)
 		if (len(received) > 0):
-			received = (received[:-1]).lower()
+			received = (received).strip().lower()
+			print received
 			#In python3 .decode('utf-8') / .encode('utf-8') nodig bij received
-			# print received
 			splittedmessage = received.split('\n')
 			for message in splittedmessage:
 				# print "this is message: " + str(message)
@@ -36,14 +36,14 @@ class ClientListenhread(threading.Thread):
 				self.UpdateTriggers(newinfo)
 
 	def UpdateTriggers(self,updatedtriggers):
-		if (updatedtriggers.type == "primarytrigger" or updatedtriggers.type == "secondarytrigger"):
+	 	# updatedtriggers.type == "secondarytrigger, nothing is done with this"
+		if (updatedtriggers.type == "primarytrigger"):
 			self.UpdateTriggerLanes(updatedtriggers)
 		elif (updatedtriggers.type == "bridgestatusdata"):
 			bridgestatus.bridgeopened = updatedtriggers.opened
 			UI.updateBridgeStatus(bridgestatus.bridgeopen, bridgestatus.bridgeopened)
 		elif (updatedtriggers.type == "timescaledata"):
-			print "ok"
-			# self.ConfirmTimescale(self.c, updatedtriggers)
+			self.ConfirmTimescale(self.c, updatedtriggers)
 
 	def UpdateTriggerLanes(self,updatedtrigger):
 		if self.UpdateSpecificLanesIntersection(updatedtrigger, intersectionstatus.carlanes): return
@@ -56,38 +56,28 @@ class ClientListenhread(threading.Thread):
 		for lane in specificlanes:
 			if updatedtrigger.id == lane.id:
 				if (updatedtrigger.triggered):
-					lane.triggered += 1
+					lane.triggered = 1
 				else:
-					lane.triggered -= 1
+					lane.triggered = 0
 				return True
 		return False
 
 	def UpdateSpecificLanesIntersection(self,updatedtrigger,specificlanes):
-		if updatedtrigger.type == "secondarytrigger":
-			return True
-			# for lane in intersectionstatus.alltriggeredlanes
-			# 	if updatedtrigger.id == lane.id:
-			# 		if updatedtrigger.triggered:
-			# 			laneindex = intersectionstatus.alltriggeredlanes.index(lane)
-			# 			if (laneindex-1 >= 0):
-			# 				intersectionstatus.alltriggeredlanes.insert(laneindex-1, intersectionstatus.alltriggeredlanes.pop(laneindex))
-			# 		return True
-		else:
-			for lane in specificlanes:
-				if updatedtrigger.id == lane.id:
-					if (updatedtrigger.triggered):
-						intersectionstatus.alltriggeredlanes.append(lane)
-						lane.triggered += 1
-					else:
-						intersectionstatus.alltriggeredlanes.remove(lane)
-						lane.triggered -= 1
-					return True
+		for lane in specificlanes:
+			if updatedtrigger.id == lane.id:
+				if (updatedtrigger.triggered) and not lane in intersectionstatus.alltriggeredlanes:
+					intersectionstatus.alltriggeredlanes.append(lane)
+					lane.triggered += 1
+				elif lane in intersectionstatus.alltriggeredlanes and lane in intersectionstatus.alltriggeredlanes:
+					intersectionstatus.alltriggeredlanes.remove(lane)
+					lane.triggered -= 1
+				return True
 		return False
 
 	def ConfirmTimescale(self, c, updatedtriggers):
 		global timescale 
 		timescale = updatedtriggers.scale
-		c.send(json.dumps({'type':'TimeScaleVerifyData', 'status':True}) +'\n')
+		c.send(json.dumps({'type':'TimeScaleVerifyData', 'status':False}) +'\n')
 
 def jdefault(o):
     if isinstance(o, set):

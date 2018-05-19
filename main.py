@@ -8,7 +8,6 @@ import threading
 from time import sleep   
 import time 
 from collections import namedtuple
-# from classes.Lane import Lane
 
 class ClientListenhread(threading.Thread):
 	def __init__(self, name, c, keep):
@@ -27,7 +26,7 @@ class ClientListenhread(threading.Thread):
 		received = self.c.recv(2048)
 		if (len(received) > 0):
 			received = (received).strip().lower()
-			print received
+			# print received
 			#In python3 .decode('utf-8') / .encode('utf-8') nodig bij received
 			splittedmessage = received.split('\n')
 			for message in splittedmessage:

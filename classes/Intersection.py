@@ -3,6 +3,7 @@ import time
 from time import sleep
 from TrafficLight import TrafficSendData, TrafficLight
 import json
+import re
 
 
 class Intersection(object):
@@ -68,12 +69,39 @@ class Intersection(object):
     				break
     		if goodlane:
     			path.append(remaininglane)
+    	if (True):
+    		path = self.sortoutpedestrianlanes(path)
     	return path
 
     def setcurrentlanestrafficlights(self, c, color):
     	for lane in self.currentlanes:
     		lane.trafficlightstatus = color
     	c.send(TrafficlightToJSON(self.currentlanes))
+
+    def sortoutpedestrianlanes(self, lanes):
+    	newlanes = []
+    	for lane in lanes:
+    		if re.match(r'^3.(.*)', lane.id):
+    			if re.match(r'(.*).1$', lane.id):
+    				for pedestrianlane in self.pedestrianlanes:
+    					if (pedestrianlane.id == lane.id[:-1]+str(2)):
+    						newlanes.append(pedestrianlane)
+    			elif re.match(r'(.*).2$', lane.id):
+    				for pedestrianlane in self.pedestrianlanes:
+    					if (pedestrianlane.id == lane.id[:-1]+str(4)):
+    						newlanes.append(pedestrianlane)
+    			elif re.match(r'(.*).3$', lane.id):
+    				for pedestrianlane in self.pedestrianlanes:
+    					if (pedestrianlane.id == lane.id[:-1]+str(1)):
+    						newlanes.append(pedestrianlane)
+    			elif re.match(r'(.*).4$', lane.id):
+    				for pedestrianlane in self.pedestrianlanes:
+    					if (pedestrianlane.id == lane.id[:-1]+str(3)):
+    						newlanes.append(pedestrianlane)
+    		else:
+    			newlanes.append(lane)
+    	return newlanes
+
 
     def debuglanes(self):
         print "-----TRIGGERED-----"

@@ -3,28 +3,30 @@ import json
 from classes.TrafficLight import TrafficLightData, TrafficLight
 from classes.Bridge import Bridge
 from classes.Intersection import Intersection
-from classes.UI import UIhread
+from classes.UI import UI
 import threading
 from time import sleep   
 import time 
 from collections import namedtuple
 
+#Listens to client messages and updates the right parts
 class ClientListenThread(threading.Thread):
-	def __init__(self, name, socket, keep, bridgestatus, intersectionstatus, UI):
+	def __init__(self, socket, keep, bridgestatus, intersectionstatus, UI):
 		threading.Thread.__init__(self)
-		self.name = name
 		self.socket = socket
 		self.keep = keep
 		self.bridgestatus = bridgestatus
 		self.intersectionstatus = intersectionstatus
 		self.UI = UI
 
+	#Main loop
 	def run(self):
-		print "Starting " + self.name
+		print "Starting ClientListenThread"
 		while self.keep: 
 			self.listen()
-		print "exiting" + self.name
+		print "Exiting ClientListenThread"
 
+	#Waits for client message to handle
 	def listen(self):
 		received = self.socket.recv(2048)
 		if (len(received) > 0):
@@ -34,24 +36,27 @@ class ClientListenThread(threading.Thread):
 				newinfo = json.loads(message, object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
 				self.update(newinfo)
 
+	#Updates based on the type of message
 	def update(self,updatedtrigger):
 	 	# secondarytrigger type is not used
 		if (updatedtrigger.type == "primarytrigger"):
-			self.UpdateTriggerLanes(updatedtrigger)
+			self.updateTriggerLanes(updatedtrigger)
 		elif (updatedtrigger.type == "bridgestatusdata"):
 			self.bridgestatus.bridgeopened = updatedtrigger.opened
 			self.UI.updateBridgeStatus(self.bridgestatus.bridgeopen, self.bridgestatus.bridgeopened)
 		elif (updatedtrigger.type == "timescaledata"):
-			self.ConfirmTimescale(self.socket, updatedtrigger)
+			self.confirmTimescale(updatedtrigger)
 
-	def UpdateTriggerLanes(self,updatedtrigger):
-		if self.UpdateSpecificLanesIntersection(updatedtrigger, self.intersectionstatus.carlanes): return
-		if self.UpdateSpecificLanesIntersection(updatedtrigger, self.intersectionstatus.bicyclelanes): return
-		if self.UpdateSpecificLanes(updatedtrigger, self.bridgestatus.carlanes): return
-		if self.UpdateSpecificLanes(updatedtrigger, self.bridgestatus.boatlanes): return
-		if self.UpdateSpecificLanesIntersection(updatedtrigger, self.intersectionstatus.pedestrianlanes): return
+	#Updates based on lane
+	def updateTriggerLanes(self,updatedtrigger):
+		if self.updateSpecificIntersectionLanes(updatedtrigger, self.intersectionstatus.carlanes): return
+		if self.updateSpecificIntersectionLanes(updatedtrigger, self.intersectionstatus.bicyclelanes): return
+		if self.updateSpecificBridgeLanes(updatedtrigger, self.bridgestatus.carlanes): return
+		if self.updateSpecificBridgeLanes(updatedtrigger, self.bridgestatus.boatlanes): return
+		if self.updateSpecificIntersectionLanes(updatedtrigger, self.intersectionstatus.pedestrianlanes): return
 
-	def UpdateSpecificLanes(self,updatedtrigger,specificlanes):
+	#Updates bridgelanes
+	def updateSpecificBridgeLanes(self,updatedtrigger,specificlanes):
 		for lane in specificlanes:
 			if updatedtrigger.id == lane.id:
 				if (updatedtrigger.triggered):
@@ -61,7 +66,8 @@ class ClientListenThread(threading.Thread):
 				return True
 		return False
 
-	def UpdateSpecificLanesIntersection(self,updatedtrigger,specificlanes):
+	#Updates intersectionlanes
+	def updateSpecificIntersectionLanes(self,updatedtrigger,specificlanes):
 		for lane in specificlanes:
 			if updatedtrigger.id == lane.id:
 				if (updatedtrigger.triggered) and not lane in self.intersectionstatus.alltriggeredlanes:
@@ -73,7 +79,8 @@ class ClientListenThread(threading.Thread):
 				return True
 		return False
 
-	def ConfirmTimescale(self, updatedtrigger):
+	#Confirms timescale for simulator
+	def confirmTimescale(self, updatedtrigger):
 		global timescale 
 		timescale = updatedtriggers.scale
 		self.socket.send(json.dumps({'type':'TimeScaleVerifyData', 'status':False}) +'\n')

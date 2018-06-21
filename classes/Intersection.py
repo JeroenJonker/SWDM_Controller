@@ -4,7 +4,7 @@ from time import sleep
 from TrafficLight import TrafficLightData, TrafficLight
 import json
 
-
+#The intersection and other lanes that are influenced by the intersection. 
 class Intersection(object):
     def __init__(self):
         self.currentlanes = []
@@ -34,47 +34,51 @@ class Intersection(object):
                                 Lane("3.3.3", ["1.2", "1.5", "1.10"]), Lane("3.3.4", ["1.2", "1.5", "1.10"]), Lane("3.4.3", ["1.1", "1.5", "1.9"]),
                                 Lane("3.4.4", ["1.1", "1.5", "1.9"])]
 
-
-    def ManageTraffic(self, socket):
+	#Main loop
+    def manageTraffic(self, socket):
         if (time.time() - self.timer) > 2 and self.state == "orange":
-            self.setcurrentlanestrafficlights(socket,"red")
+            self.setCurrentlanesTrafficlights(socket,"red")
             self.timer = time.time()
             self.state = "red"
         elif (time.time() - self.timer) > 5 and self.state == "green":
         	self.state = "orange"
         	self.timer = time.time()
-        	self.setcurrentlanestrafficlights(socket,"orange")
+        	self.setCurrentlanesTrafficlights(socket,"orange")
         elif (time.time() - self.timer > 4 and self.state == "red"):
-            path = self.ChooseLanes(self.alltriggeredlanes)
+            path = self.chooseLanes(self.alltriggeredlanes)
             if len(path) > 0:
 	            self.currentlanes = path
-	            self.setcurrentlanestrafficlights(socket,"green")
+	            self.setCurrentlanesTrafficlights(socket,"green")
 	            self.state = "green"
 	            self.timer = time.time()
-	            self.debuglanes()
+	            self.debugLanes()
         return self.currentlanes
 
-    def ChooseLanes(self, triggeredlanes):
+    #Returns lanes that are triggered and do not collide with eachother
+    def chooseLanes(self, triggeredlanes):
     	remaininglanes = list(triggeredlanes)
     	chosenlanes = []
     	for remaininglane in remaininglanes:
-    		if not self.IsDependedLaneInChosenlanes(remaininglane, chosenlanes):
+    		if not self.isDependedLaneInChosenlanes(remaininglane, chosenlanes):
     			chosenlanes.append(remaininglane)
     	return chosenlanes
 
-    def IsDependedLaneInChosenlanes(self, remaininglane, chosenlanes):
+    #Checks if the remaininglane dependedlanes are in conflict with the already chosenlanes
+    def isDependedLaneInChosenlanes(self, remaininglane, chosenlanes):
     	for dependedlane in remaininglane.dependedlanes:
     		for chosenlane in chosenlanes:
     			if dependedlane == chosenlane.id:
     				return True
     	return False
 
-    def setcurrentlanestrafficlights(self, socket, color):
+    #Sets the currentlanes to a specific color and sends the data to the simulator
+    def setCurrentlanesTrafficlights(self, socket, color):
     	for lane in self.currentlanes:
     		lane.trafficlightstatus = color
-    	socket.send(TrafficLightData(self.currentlanes).ClassToJSON())
+    	socket.send(TrafficLightData(self.currentlanes).classToJSON())
 
-    def debuglanes(self):
+    #debug, to see which lanes are triggered and which lanes are chosen
+    def debugLanes(self):
         print "-----TRIGGERED-----"
         for lane in self.alltriggeredlanes:
             print lane.id

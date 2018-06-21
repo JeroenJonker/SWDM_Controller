@@ -3,6 +3,7 @@ from TrafficLight import *
 import time
 import json
 
+#The bridge and other lanes and boats that are influenced by the bridge. 
 class Bridge(object):
 	def __init__(self):
 		self.timer = 0
@@ -15,17 +16,19 @@ class Bridge(object):
 		self.currentlane = None
 		self.carlanes[0].trafficlightstatus = "green"
 
-	def ManageBridge(self, socket):
+	#Main loop
+	def manageBridge(self, socket):
 		if (self.bridgeopen == self.bridgeopened):
 			if self.bridgeopen:
-				return self.bridgeopen, self.bridgeopened, self.BridgeOpenRoutine(socket)
+				return self.bridgeopen, self.bridgeopened, self.bridgeOpenRoutine(socket)
 			elif not self.bridgeopen:
-				return self.bridgeopen, self.bridgeopened, self.BridgeClosedRoutine(socket)
+				return self.bridgeopen, self.bridgeopened, self.bridgeClosedRoutine(socket)
 		return self.bridgeopen, self.bridgeopened, []
 
-	def BridgeClosedRoutine(self,socket):
+	#Routine when the bridge is closed
+	def bridgeClosedRoutine(self,socket):
 		newsetlane = []
-		if not self.changestate and not self.AreAllBoatsPassed() and time.time() - self.statetimer > 20:
+		if not self.changestate and not self.areAllBoatsPassed() and time.time() - self.statetimer > 20:
 			if self.carlanes[0].trafficlightstatus == "green":
 				self.carlanes[0].trafficlightstatus = "red"
 			self.timer = time.time()
@@ -33,22 +36,23 @@ class Bridge(object):
 			self.changestate = True
 		elif self.changestate and time.time() - self.timer > 4:
 			self.bridgeopen = not self.bridgeopen
-			self.SendBridgeData(socket)
+			self.sendBridgeData(socket)
 			self.statetimer = time.time()
 			self.changestate = False
 		elif not self.changestate and self.carlanes[0].trafficlightstatus == "red":
 			self.carlanes[0].trafficlightstatus = "green"
 			newsetlane = self.carlanes
 		if len(newsetlane) > 0:
-			socket.send(TrafficLightData(newsetlane).ClassToJSON())
+			socket.send(TrafficLightData(newsetlane).classToJSON())
 		return newsetlane
 
-	def BridgeOpenRoutine(self,socket):
+	#Routine when the bridge is open
+	def bridgeOpenRoutine(self,socket):
 		newsetboats = []
-		if (self.AreAllBoatsPassed() or time.time() - self.statetimer > 20) and time.time() - self.timer > 3 and (self.currentlane == None or self.currentlane.trafficlightstatus == "red"):
+		if (self.areAllBoatsPassed() or time.time() - self.statetimer > 20) and time.time() - self.timer > 3 and (self.currentlane == None or self.currentlane.trafficlightstatus == "red"):
 			self.bridgeopen = not self.bridgeopen
 			self.statetimer = time.time()
-			self.SendBridgeData(socket)
+			self.sendBridgeData(socket)
 			self.currentlane = None
 		elif time.time() - self.timer > 7 and self.currentlane != None and self.currentlane.trafficlightstatus == "green" and self.currentlane.triggered == 0:
 			self.timer = time.time()
@@ -63,13 +67,15 @@ class Bridge(object):
 			newsetboats.append(self.currentlane)
 			self.timer = time.time()
 		if len(newsetboats) > 0:
-			socket.send(TrafficLightData(newsetboats).ClassToJSON())
+			socket.send(TrafficLightData(newsetboats).classToJSON())
 		return newsetboats
 
-	def SendBridgeData(self, socket):
+	#Sends request to open or close the bridge
+	def sendBridgeData(self, socket):
 		socket.send(json.dumps({'type':'BridgeData','bridgeOpen':self.bridgeopen})+'\n')
 
-	def AreAllBoatsPassed(self):
+	#Checks if all the boats are passed
+	def areAllBoatsPassed(self):
 		for boat in self.boatlanes:
 			if boat.triggered > 0:
 				return False

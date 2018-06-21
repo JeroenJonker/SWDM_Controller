@@ -1,9 +1,8 @@
 from Lane import Lane
 import time
 from time import sleep
-from TrafficLight import TrafficSendData, TrafficLight
+from TrafficLight import TrafficLightData, TrafficLight
 import json
-import re
 
 
 class Intersection(object):
@@ -36,72 +35,44 @@ class Intersection(object):
                                 Lane("3.4.4", ["1.1", "1.5", "1.9"])]
 
 
-    def ManageTraffic(self, c):
+    def ManageTraffic(self, socket):
         if (time.time() - self.timer) > 2 and self.state == "orange":
-            self.setcurrentlanestrafficlights(c,"red")
+            self.setcurrentlanestrafficlights(socket,"red")
             self.timer = time.time()
             self.state = "red"
         elif (time.time() - self.timer) > 5 and self.state == "green":
         	self.state = "orange"
         	self.timer = time.time()
-        	self.setcurrentlanestrafficlights(c,"orange")
+        	self.setcurrentlanestrafficlights(socket,"orange")
         elif (time.time() - self.timer > 4 and self.state == "red"):
-            path = self.BestPath(self.alltriggeredlanes)
+            path = self.ChooseLanes(self.alltriggeredlanes)
             if len(path) > 0:
 	            self.currentlanes = path
-	            self.setcurrentlanestrafficlights(c,"green")
+	            self.setcurrentlanestrafficlights(socket,"green")
 	            self.state = "green"
 	            self.timer = time.time()
 	            self.debuglanes()
         return self.currentlanes
 
-    def BestPath(self, a):
-    	remaininglanes = list(a)
-    	path = []
+    def ChooseLanes(self, triggeredlanes):
+    	remaininglanes = list(triggeredlanes)
+    	chosenlanes = []
     	for remaininglane in remaininglanes:
-    		goodlane = True
-    		for dependedlane in remaininglane.dependedlanes:
-    			for chosenlane in path:
-    				if  dependedlane == chosenlane.id:
-    					goodlane = False
-    					break
-    			if not goodlane:
-    				break
-    		if goodlane:
-    			path.append(remaininglane)
-    	if (True):
-    		path = self.sortoutpedestrianlanes(path)
-    	return path
+    		if not self.IsDependedLaneInChosenlanes(remaininglane, chosenlanes):
+    			chosenlanes.append(remaininglane)
+    	return chosenlanes
 
-    def setcurrentlanestrafficlights(self, c, color):
+    def IsDependedLaneInChosenlanes(self, remaininglane, chosenlanes):
+    	for dependedlane in remaininglane.dependedlanes:
+    		for chosenlane in chosenlanes:
+    			if dependedlane == chosenlane.id:
+    				return True
+    	return False
+
+    def setcurrentlanestrafficlights(self, socket, color):
     	for lane in self.currentlanes:
     		lane.trafficlightstatus = color
-    	c.send(TrafficlightToJSON(self.currentlanes))
-
-    def sortoutpedestrianlanes(self, lanes):
-    	newlanes = []
-    	for lane in lanes:
-    		if re.match(r'^3.(.*)', lane.id):
-    			if re.match(r'(.*).1$', lane.id):
-    				for pedestrianlane in self.pedestrianlanes:
-    					if (pedestrianlane.id == lane.id[:-1]+str(2)):
-    						newlanes.append(pedestrianlane)
-    			elif re.match(r'(.*).2$', lane.id):
-    				for pedestrianlane in self.pedestrianlanes:
-    					if (pedestrianlane.id == lane.id[:-1]+str(4)):
-    						newlanes.append(pedestrianlane)
-    			elif re.match(r'(.*).3$', lane.id):
-    				for pedestrianlane in self.pedestrianlanes:
-    					if (pedestrianlane.id == lane.id[:-1]+str(1)):
-    						newlanes.append(pedestrianlane)
-    			elif re.match(r'(.*).4$', lane.id):
-    				for pedestrianlane in self.pedestrianlanes:
-    					if (pedestrianlane.id == lane.id[:-1]+str(3)):
-    						newlanes.append(pedestrianlane)
-    		else:
-    			newlanes.append(lane)
-    	return newlanes
-
+    	socket.send(TrafficLightData(self.currentlanes).ClassToJSON())
 
     def debuglanes(self):
         print "-----TRIGGERED-----"
@@ -110,16 +81,3 @@ class Intersection(object):
         print "=====CHOSEN====="
         for lane in self.currentlanes:
             print lane.id
-
-def jdefault(o):
-    if isinstance(o, set):
-        return list(o)
-    return o.__dict__
-
-
-def TrafficlightToJSON(trafficinput):
-    output = TrafficSendData()
-    for x in trafficinput:
-        newtrafficlightstatus = TrafficLight(x.id, x.trafficlightstatus)
-        output.trafficLights.append(newtrafficlightstatus)
-    return json.dumps(output, default=jdefault) + '\n'

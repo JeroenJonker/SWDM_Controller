@@ -2,9 +2,6 @@ from Tkinter import *
 import threading
 from Lane import Lane
 
-#entry() voor tekstveld, en .get() om de uitkomst hiervan te pakken.
-#.pack(fill=X) voor de gehele breedte
-#(command=self.function) voor bijv buttons. command= lambda bestolor=color: self.printy(bestolor) voor for loop
 
 class UIhread(threading.Thread):
 	def __init__(self, titlename, carlanes, bicyclelanes, pedestrianlanes, bridgelanes):
@@ -15,9 +12,9 @@ class UIhread(threading.Thread):
 		self.carframe = Frame(self.root, bg="#2C3E50")
 		self.carframe.pack(side=LEFT)
 		self.lanestates = self.setstates(carlanes, self.carframe)
-		self.bycicleframe = Frame(self.root, bg="#2C3E50")
-		self.bycicleframe.pack(side=LEFT)
-		self.lanestates.update(self.setstates(bicyclelanes, self.bycicleframe))
+		self.bicycleframe = Frame(self.root, bg="#2C3E50")
+		self.bicycleframe.pack(side=LEFT)
+		self.lanestates.update(self.setstates(bicyclelanes, self.bicycleframe))
 		self.pedestrianframe = Frame(self.root, bg="#2C3E50")
 		self.pedestrianframe.pack(side=LEFT)
 		self.lanestates.update(self.setstates(pedestrianlanes, self.pedestrianframe))
